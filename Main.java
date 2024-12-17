@@ -853,7 +853,7 @@ public class Main extends Application {
         // Fetch data from the database
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT id, name, email, username, orders_count, status FROM customers")) {
+             ResultSet rs = stmt.executeQuery("SELECT id, name, email, username, orders_count, gender FROM customers")) {
 
             while (rs.next()) {
                 customers.add(new Customer(
@@ -862,7 +862,7 @@ public class Main extends Application {
                         rs.getString("email"),         // Email
                         rs.getString("username"),      // Username
                         rs.getInt("orders_count"),     // Orders Count
-                        rs.getString("status")         // Status
+                        rs.getString("gender").toCharArray()[0]      // gender
                 ));
             }
         } catch (SQLException e) {
@@ -983,7 +983,6 @@ public class Main extends Application {
         // Add columns to the table
         customerTable.getColumns().addAll(editColumn, deleteColumn);
     }
-    private TableView<Customer> customerTable; // Declare it as a class field
 
     private void showEditCustomerDialog(Customer customer, ObservableList<Customer> customers) {
         // Create a new dialog stage
@@ -1008,9 +1007,9 @@ public class Main extends Application {
         ordersCountField.setPromptText("Enter Orders Count");
         ordersCountField.setStyle("-fx-font-size: 14px;");
 
-        TextField statusField = new TextField(customer.getStatus());
-        statusField.setPromptText("Enter Status");
-        statusField.setStyle("-fx-font-size: 14px;");
+        TextField genderField = new TextField(String.valueOf(customer.getGender()));
+        genderField.setPromptText("Enter Gender");
+        genderField.setStyle("-fx-font-size: 14px;");
 
         // Save button
         Button saveButton = new Button("Save");
@@ -1020,7 +1019,7 @@ public class Main extends Application {
             String name = nameField.getText().trim();
             String email = emailField.getText().trim();
             String username = usernameField.getText().trim();
-            String status = statusField.getText().trim();
+            char gender = genderField.getText().trim().toCharArray()[0];
             int ordersCount;
 
             // Validate Orders Count input
@@ -1032,21 +1031,25 @@ public class Main extends Application {
             }
 
             // Validate fields are not empty
-            if (name.isEmpty() || email.isEmpty() || username.isEmpty() || status.isEmpty()) {
+            if (name.isEmpty() || email.isEmpty() || username.isEmpty() || genderField.getText().trim().isEmpty()) {
                 showAlert(Alert.AlertType.ERROR, "Validation Error", "All fields must be filled.");
+                return;
+            }
+            if (gender != 'M' && gender != 'F'){
+                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Gender Field Must be 'M' or 'F' Only !!");
                 return;
             }
 
             // Update the customer in the database
             try (Connection conn = getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(
-                         "UPDATE customers SET name = ?, email = ?, username = ?, orders_count = ?, status = ? WHERE id = ?")) {
+                         "UPDATE customers SET name = ?, email = ?, username = ?, orders_count = ?, gender = ? WHERE id = ?")) {
 
                 pstmt.setString(1, name);
                 pstmt.setString(2, email);
                 pstmt.setString(3, username);
                 pstmt.setInt(4, ordersCount);
-                pstmt.setString(5, status);
+                pstmt.setString(5, String.valueOf(gender));
                 pstmt.setInt(6, customer.getId());
 
                 int rowsAffected = pstmt.executeUpdate();
@@ -1056,12 +1059,13 @@ public class Main extends Application {
                     return;
                 }
 
-                // Update the customer object and the ObservableList
+                // Update the customer object
                 customer.setName(name);
                 customer.setEmail(email);
                 customer.setUsername(username);
                 customer.setOrdersCount(ordersCount);
-                customer.setStatus(status);
+                customer.setGender(gender);
+                // Update ObservableList
                 customers.set(customers.indexOf(customer), customer);
 
 
@@ -1087,8 +1091,8 @@ public class Main extends Application {
         Label ordersCountLabel = new Label("Orders Count:");
         ordersCountLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
-        Label statusLabel = new Label("Status:");
-        statusLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        Label genderLabel = new Label("Gender:");
+        genderLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
         // Layout for the dialog
         VBox layout = new VBox(15,
@@ -1096,7 +1100,7 @@ public class Main extends Application {
                 emailLabel, emailField,
                 usernameLabel, usernameField,
                 ordersCountLabel, ordersCountField,
-                statusLabel, statusField,
+                genderLabel, genderField,
                 saveButton
         );
         layout.setAlignment(Pos.CENTER);
@@ -1152,8 +1156,8 @@ public class Main extends Application {
         TextField usernameField = createStyledTextField("Enter customer username");
 
 
-        Label statusLabel = new Label("Status:");
-        TextField statusField = createStyledTextField("Enter customer status");
+        Label genderLabel = new Label("Gender:");
+        TextField genderField = createStyledTextField("Enter customer gender");
 
         // Save Button (Made larger)
         Button saveButton = createStyledButton("Save");
@@ -1185,11 +1189,16 @@ public class Main extends Application {
             String name = nameField.getText().trim();
             String email = emailField.getText().trim();
             String username = usernameField.getText().trim();
-            String status = statusField.getText().trim();
+            char gender = genderField.getText().trim().toCharArray()[0];
 
             // Validate inputs
-            if (name.isEmpty() || email.isEmpty() || username.isEmpty() || status.isEmpty()) {
+            if (name.isEmpty() || email.isEmpty() || username.isEmpty() || genderField.getText().trim().isEmpty()) {
                 showAlert(Alert.AlertType.ERROR, "Validation Error", "All fields must be filled!");
+                return;
+            }
+
+            if (gender != 'M' && gender != 'F'){
+                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Gender Field Must be 'M' or 'F' Only !!");
                 return;
             }
 
@@ -1197,11 +1206,11 @@ public class Main extends Application {
                 // Save to the database
                 try (Connection conn = getConnection();
                      PreparedStatement pstmt = conn.prepareStatement(
-                             "INSERT INTO customers (name, email, username, orders_count, status) VALUES (?, ?, ?, 0, ?)")) {
+                             "INSERT INTO customers (name, email, username, orders_count, gender) VALUES (?, ?, ?, 0, ?)")) {
                     pstmt.setString(1, name);
                     pstmt.setString(2, email);
                     pstmt.setString(3, username);
-                    pstmt.setString(4, status);
+                    pstmt.setString(4, String.valueOf(gender));
                     pstmt.executeUpdate();
 
                     PreparedStatement getCustomerId = conn.prepareStatement("SELECT id FROM customers WHERE CAST(name AS NVARCHAR(MAX)) = ? ");
@@ -1211,7 +1220,7 @@ public class Main extends Application {
                     int id = res.getInt(1);
 
                     // Update table and close dialog
-                    customers.add(new Customer(id, name, email, username, 0, status)); // ID set to 0 for simplicity
+                    customers.add(new Customer(id, name, email, username, 0, gender)); // ID set to 0 for simplicity
                     showAlert(Alert.AlertType.INFORMATION, "Success", "Customer added successfully!");
                     dialog.close();
                 }
@@ -1240,8 +1249,8 @@ public class Main extends Application {
         form.add(usernameLabel, 0, 2);
         form.add(usernameField, 1, 2);
 
-        form.add(statusLabel, 0, 4);
-        form.add(statusField, 1, 4);
+        form.add(genderLabel, 0, 4);
+        form.add(genderField, 1, 4);
 
         // Add Save Button to the center
         HBox buttonBox = new HBox(saveButton);
@@ -1261,66 +1270,10 @@ public class Main extends Application {
         alert.showAndWait();
     }
 
-    private <T> HBox createSearchBar(String placeholder, TableView<T> table, ObservableList<T> originalData, String... filterableProperties) {
-        TextField searchField = createStyledTextField(placeholder);
-        Button searchButton = createStyledButton("Search");
-
-        searchButton.setOnAction(event -> {
-            String searchTerm = searchField.getText().trim().toLowerCase();
-
-            if (searchTerm.isEmpty()) {
-                table.setItems(originalData);
-            } else {
-                ObservableList<T> filteredList = FXCollections.observableArrayList();
-
-                for (T item : originalData) {
-                    for (String property : filterableProperties) {
-                        try {
-                            // Use reflection to dynamically get property values
-                            String value = item.getClass().getMethod("get" + capitalize(property)).invoke(item).toString().toLowerCase();
-                            if (value.contains(searchTerm)) {
-                                filteredList.add(item);
-                                break; // Match found, move to the next item
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-
-                table.setItems(filteredList);
-            }
-        });
-
-        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue.isEmpty()) {
-                table.setItems(originalData);
-            }
-        });
-
-        HBox searchBox = new HBox(10, searchField, searchButton);
-        searchBox.setAlignment(Pos.CENTER);
-
-        return searchBox;
-    }
-
     private String capitalize(String str) {
         return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
 
-    private TableView<Product> createProductTable() {
-        TableView<Product> table = new TableView<>();
-
-        table.getColumns().addAll(
-                createColumn("Name", "name"),
-                createColumn("Price", "price"),
-                createColumn("Quantity", "quantity"),
-                createColumn("Category", "category")
-        );
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        return table;
-    }
 
     private TableView<Order> createOrderTable() {
         TableView<Order> table = new TableView<>();
@@ -1344,7 +1297,7 @@ public class Main extends Application {
                 createColumn("Email", "email"),
                 createColumn("Username", "username"),
                 createColumn("Orders", "ordersCount"),
-                createColumn("Status", "status")
+                createColumn("Gender", "gender")
         );
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
