@@ -1,3 +1,5 @@
+package org.example.marketdemo;
+
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -128,10 +130,11 @@ public class Main extends Application {
         Button productsButton = createStyledButton("Products");
         Button ordersButton = createStyledButton("Orders");
         Button customersButton = createStyledButton("Customers");
+        Button staffButton = createStyledButton("Staff");
         Button signOutButton = createStyledSignOutButton("Sign Out");
 
         // Style buttons and make them bold
-        for (Button button : new Button[]{homeButton, productsButton, ordersButton, customersButton}) {
+        for (Button button : new Button[]{homeButton, productsButton, ordersButton, customersButton, staffButton}) {
             button.setMaxWidth(Double.MAX_VALUE); // Make buttons expand to fill width
             // Set button styles including bold
             button.setStyle("-fx-font-weight: bold; -fx-background-color: #2c3e50; -fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 10;");
@@ -146,7 +149,7 @@ public class Main extends Application {
         VBox.setVgrow(spacer, Priority.ALWAYS); // Allow spacer to grow and push other elements up
 
         // Create sidebar layout
-        VBox sidebar = new VBox(15, homeButton, productsButton, ordersButton, customersButton, spacer, signOutButton);
+        VBox sidebar = new VBox(15, homeButton, productsButton, ordersButton, customersButton, staffButton, spacer, signOutButton);
         sidebar.setAlignment(Pos.TOP_CENTER);
         sidebar.setStyle("-fx-background-color: #2c3e50; -fx-padding: 20;");
         sidebar.setPrefWidth(200);
@@ -162,6 +165,7 @@ public class Main extends Application {
         });
         ordersButton.setOnAction(e -> showOrdersPage());
         customersButton.setOnAction(e -> showCustomersPage());
+        staffButton.setOnAction(e -> showStaffPage());
         signOutButton.setOnAction(e -> {
             // Confirmation Dialog for Logging Out
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
@@ -194,8 +198,8 @@ public class Main extends Application {
         String url = "jdbc:sqlserver://localhost;databaseName=MarketDb;integratedSecurity=true;trustServerCertificate=true;";
         return DriverManager.getConnection(url);
     }
-    // Update the showProductsPage method
-// Update the showProductsPage method
+
+/*----------------------------------------* Product *----------------------------------------*/
     private void showProductsPage() throws SQLException {
         TableView<Product> productTable = new TableView<>();
         // Fetch data from the database
@@ -462,159 +466,170 @@ public class Main extends Application {
     }
 
 
-//
-/*                                                  Orders                                            */
-//
+/*----------------------------------------*Orders*----------------------------------------*/
 
 // Existing imports and class definitions
 
-private void showOrdersPage() {
-    TableView<Order> orderTable = createOrderTable();
-    ObservableList<Order> ordersList = FXCollections.observableArrayList();
+    private void showOrdersPage() {
+        TableView<Order> orderTable = createOrderTable();
+        ObservableList<Order> ordersList = FXCollections.observableArrayList();
 
-    // Fetch ordersList from the database
-    try (Connection conn = getConnection();
-         Statement stmt = conn.createStatement();
-         ResultSet rs = stmt.executeQuery("SELECT o.id, c.name, o.order_date, o.total_amount FROM orders o JOIN customers c ON o.customer_id = c.id")) {
-        while (rs.next()) {
-            ordersList.add(new Order(
-                    rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getDate("order_date"),
-                    rs.getDouble("total_amount")
-            ));
+        // Fetch ordersList from the database
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT o.id, c.name AS custName, s.name AS staffName, o.order_date, o.total_amount " +
+                     "FROM orders o JOIN customers c ON o.customer_id = c.id JOIN staff s ON s.id = o.staff_id")) {
+            while (rs.next()) {
+                ordersList.add(new Order(
+                        rs.getInt("id"),
+                        rs.getString("custName"),
+                        rs.getString("staffName"),
+                        rs.getDate("order_date"),
+                        rs.getDouble("total_amount")
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-    } catch (SQLException e) {
-        e.printStackTrace();
-    }
 
-    // Add Columns for TableView
-    TableColumn<Order, Integer> idCol = new TableColumn<>("Order ID");
-    idCol.setCellValueFactory(new PropertyValueFactory<>("orderId"));
+        // Add Columns for TableView
+        TableColumn<Order, Integer> idCol = new TableColumn<>("Order ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("orderId"));
 
-    TableColumn<Order, String> customerNameCol = new TableColumn<>("Customer Name");
-    customerNameCol.setCellValueFactory(new PropertyValueFactory<>("customerName"));
+        TableColumn<Order, String> customerNameCol = new TableColumn<>("Customer Name");
+        customerNameCol.setCellValueFactory(new PropertyValueFactory<>("customerName"));
 
-    TableColumn<Order, LocalDate> orderDateCol = new TableColumn<>("Order Date");
-    orderDateCol.setCellValueFactory(new PropertyValueFactory<>("orderDate"));
+        TableColumn<Order, LocalDate> orderDateCol = new TableColumn<>("Order Date");
+        orderDateCol.setCellValueFactory(new PropertyValueFactory<>("orderDate"));
 
-    TableColumn<Order, Double> totalAmountCol = new TableColumn<>("Total Price");
-    totalAmountCol.setCellValueFactory(new PropertyValueFactory<>("totalAmount"));
+        TableColumn<Order, Double> totalAmountCol = new TableColumn<>("Total Price");
+        totalAmountCol.setCellValueFactory(new PropertyValueFactory<>("totalAmount"));
 
-    // Delete Button Column
-    TableColumn<Order, Void> deleteCol = new TableColumn<>("Delete");
-    deleteCol.setCellFactory(param -> new TableCell<Order, Void>() {
-        private final Button deleteButton = new Button("Delete");
+        // Delete Button Column
+        TableColumn<Order, Void> deleteCol = new TableColumn<>("Delete");
+        deleteCol.setCellFactory(param -> new TableCell<Order, Void>() {
+            private final Button deleteButton = new Button("Delete");
 
-        {
-            deleteButton.setStyle("-fx-background-color: #DC3545; -fx-text-fill: white;");
-            deleteButton.setOnAction(e -> {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle("Confirm Deletion");
-                alert.setHeaderText("Are you sure you want to delete this order?");
-                alert.setContentText("You can't retrieve it back.");
-                alert.showAndWait().ifPresent(response -> {
-                    if (response == ButtonType.OK) {
-                        Order selectedOrder = getTableView().getItems().get(getIndex());
-                        if (deleteOrderFromDatabase(selectedOrder)) {
-                            ordersList.remove(selectedOrder);
-                            orderTable.refresh();
+            {
+                deleteButton.setStyle("-fx-background-color: #DC3545; -fx-text-fill: white;");
+                deleteButton.setOnAction(e -> {
+                    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                    alert.setTitle("Confirm Deletion");
+                    alert.setHeaderText("Are you sure you want to delete this order?");
+                    alert.setContentText("You can't retrieve it back.");
+                    alert.showAndWait().ifPresent(response -> {
+                        if (response == ButtonType.OK) {
+                            Order selectedOrder = getTableView().getItems().get(getIndex());
+                            if (deleteOrderFromDatabase(selectedOrder)) {
+                                ordersList.remove(selectedOrder);
+                                orderTable.refresh();
+                            }
                         }
+                    });
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    setGraphic(deleteButton);
+                }
+            }
+        });
+
+        // Order Details Button Column
+        TableColumn<Order, Void> detailsCol = new TableColumn<>("Order Details");
+        detailsCol.setCellFactory(param -> new TableCell<Order, Void>() {
+            private final Button detailsButton = new Button("Show");
+            {
+                detailsButton.setOnAction(e -> {
+
+                    Order selectedOrder = getTableView().getItems().get(getIndex());
+                    if (selectedOrder != null) {
+                        showOrderDetailsDialog(selectedOrder);
                     }
                 });
-            });
-        }
 
-        @Override
-        protected void updateItem(Void item, boolean empty) {
-            super.updateItem(item, empty);
-            if (empty) {
-                setGraphic(null);
-            } else {
-                setGraphic(deleteButton);
             }
-        }
-    });
 
-    // Order Details Button Column
-    TableColumn<Order, Void> detailsCol = new TableColumn<>("Order Details");
-    detailsCol.setCellFactory(param -> new TableCell<Order, Void>() {
-        private final Button detailsButton = new Button("Show");
-        {
-            detailsButton.setOnAction(e -> {
-
-                Order selectedOrder = getTableView().getItems().get(getIndex());
-                if (selectedOrder != null) {
-                    showOrderDetailsDialog(selectedOrder);
-                }
-            });
-
-        }
-
-        @Override
-        protected void updateItem(Void item, boolean empty) {
-            super.updateItem(item, empty);
-            if (empty) {
-                setGraphic(null);
-            } else {
-                detailsButton.setStyle("-fx-background-color: #0078D7; -fx-text-fill: white; ");
-                setGraphic(detailsButton);
-            }
-        }
-    });
-
-
-    // Add Columns to TableView
-    orderTable.getColumns().setAll(idCol, customerNameCol, orderDateCol, totalAmountCol, detailsCol,deleteCol);
-    orderTable.setItems(ordersList);
-
-    // Search Field and Button
-    TextField searchField = new TextField();
-    searchField.setPromptText("Search Orders");
-    searchField.setStyle("-fx-font-size: 14px; -fx-pref-width: 300px;");
-
-    Button searchButton = new Button("Search");
-    searchButton.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-size: 14px;");
-    searchButton.setOnAction(e -> {
-        String query = searchField.getText().trim();
-        if (query.isEmpty()) {
-            orderTable.setItems(ordersList);
-            orderTable.refresh();
-        } else {
-            ObservableList<Order> filteredOrders = FXCollections.observableArrayList();
-            for (Order order : ordersList) {
-                if (String.valueOf(order.getOrderId()).contains(query) ||
-                        order.getCustomerName().toLowerCase().contains(query.toLowerCase())) {
-                    filteredOrders.add(order);
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    detailsButton.setStyle("-fx-background-color: #0078D7; -fx-text-fill: white; ");
+                    setGraphic(detailsButton);
                 }
             }
-            orderTable.setItems(filteredOrders);
-            orderTable.refresh();
-        }
-    });
-
-    // Add Order Button
-    Button addOrderButton = new Button("Add Order");
-    addOrderButton.setStyle("-fx-background-color: #0078D7; -fx-text-fill: white; -fx-font-size: 14px;");
-    addOrderButton.setOnAction(e -> {
-        showAddOrderDialog(ordersList, getProductList(), orderTable);
-    });
-
-    // Top Bar Layout
-    HBox topBar = new HBox(10, searchField, searchButton, addOrderButton);
-    topBar.setAlignment(Pos.CENTER_LEFT);
-    topBar.setPadding(new Insets(10));
-
-    // Ensure TableView Resizes Correctly
-    VBox ordersPage = new VBox(10, topBar, orderTable);
-    ordersPage.setPadding(new Insets(10));
-    VBox.setVgrow(orderTable, Priority.ALWAYS);
-
-    mainLayout.setCenter(ordersPage);
-}
+        });
 
 
-    /************************          Helper Methods for orders          **************************/
+        // Add Columns to TableView
+        orderTable.getColumns().setAll(idCol, customerNameCol, orderDateCol, totalAmountCol, detailsCol,deleteCol);
+        orderTable.setItems(ordersList);
+
+        // Search Field and Button
+        TextField searchField = new TextField();
+        searchField.setPromptText("Search Orders");
+        searchField.setStyle("-fx-font-size: 14px; -fx-pref-width: 300px;");
+
+        Button searchButton = new Button("Search");
+        searchButton.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-size: 14px;");
+        searchButton.setOnAction(e -> {
+            String query = searchField.getText().trim();
+            if (query.isEmpty()) {
+                orderTable.setItems(ordersList);
+                orderTable.refresh();
+            } else {
+                ObservableList<Order> filteredOrders = FXCollections.observableArrayList();
+                for (Order order : ordersList) {
+                    if (String.valueOf(order.getOrderId()).contains(query) ||
+                            order.getCustomerName().toLowerCase().contains(query.toLowerCase())) {
+                        filteredOrders.add(order);
+                    }
+                }
+                orderTable.setItems(filteredOrders);
+                orderTable.refresh();
+            }
+        });
+
+        // Add Order Button
+        Button addOrderButton = new Button("Add Order");
+        addOrderButton.setStyle("-fx-background-color: #0078D7; -fx-text-fill: white; -fx-font-size: 14px;");
+        addOrderButton.setOnAction(e -> {
+            showAddOrderDialog(ordersList, getProductList(), orderTable);
+        });
+
+        // Top Bar Layout
+        HBox topBar = new HBox(10, searchField, searchButton, addOrderButton);
+        topBar.setAlignment(Pos.CENTER_LEFT);
+        topBar.setPadding(new Insets(10));
+
+        // Ensure TableView Resizes Correctly
+        VBox ordersPage = new VBox(10, topBar, orderTable);
+        ordersPage.setPadding(new Insets(10));
+        VBox.setVgrow(orderTable, Priority.ALWAYS);
+
+        mainLayout.setCenter(ordersPage);
+    }
+    private TableView<Order> createOrderTable() {
+        TableView<Order> table = new TableView<>();
+
+        table.getColumns().addAll(
+                createColumn("Order ID", "orderId"),
+                createColumn("Customer Name", "customerName"),
+                createColumn("Order Date", "orderDate"),
+                createColumn("Total Amount", "totalAmount")
+        );
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        return table;
+    }
+
     private boolean deleteOrderFromDatabase(Order order) {
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement("DELETE FROM orders WHERE id = ?")) {
@@ -638,13 +653,17 @@ private void showOrdersPage() {
         customerNameField.setPromptText("Enter Customer Name");
         customerNameField.setStyle("-fx-font-size: 14px;");
 
+        TextField staffNameField = new TextField();
+        staffNameField.setPromptText("Enter Staff Name");
+        staffNameField.setStyle("-fx-font-size: 14px;");
+
         DatePicker orderDatePicker = new DatePicker();
         orderDatePicker.setPromptText("Select Order Date");
         orderDatePicker.setStyle("-fx-font-size: 14px;");
         orderDatePicker.setPrefWidth(300);
 
         TextField totalAmountField = new TextField();
-        totalAmountField.setPromptText("Enter Total Amount");
+        totalAmountField.setPromptText("Total Amount");
         totalAmountField.setStyle("-fx-font-size: 14px;");
         totalAmountField.setEditable(false); // Prevent manual edits
 
@@ -743,38 +762,63 @@ private void showOrdersPage() {
 
         saveButton.setOnAction(e -> {
             String customerName = customerNameField.getText().trim();
+            String staffName = staffNameField.getText().trim();
+
             try {
                 Date date = java.sql.Date.valueOf(orderDatePicker.getValue());
                 try {
                     // Check Existence of customer
                     PreparedStatement checkCustomer = conn.prepareStatement("SELECT id as exp FROM customers WHERE CAST(name AS NVARCHAR(MAX)) = ?", Statement.RETURN_GENERATED_KEYS);
                     checkCustomer.setString(1, customerName);
-                    ResultSet res = checkCustomer.executeQuery();
+                    ResultSet customerResult = checkCustomer.executeQuery();
+                    System.out.println("Customer Fetched");
 
-                    boolean isCustomerExist = res.next();
-                    int customerId = res.getInt(1);
+                    // Check Existence of staff
+                    PreparedStatement checkStaff = conn.prepareStatement("SELECT id as exp FROM staff WHERE CAST(name AS NVARCHAR(MAX)) = ?", Statement.RETURN_GENERATED_KEYS);
+                    checkStaff.setString(1, staffName);
+                    ResultSet staffResult = checkStaff.executeQuery();
+                    System.out.println("Staff Fetched");
 
-                    if (isCustomerExist) {
+                    boolean isCustomerExist = customerResult.next();
+                    boolean isStaffExist = staffResult.next();
+                    int staffId = staffResult.getInt(1);
+                    int customerId = customerResult.getInt(1);
+
+                    if (isCustomerExist && isStaffExist) {
+                        System.out.println("Customer and Staff exist");
                         // Insert New Order for Customer
-                        PreparedStatement insertOrder = conn.prepareStatement("INSERT INTO orders (customer_id, order_date, total_amount) VALUES (?, ?, ?)");
+                        PreparedStatement insertOrder = conn.prepareStatement("INSERT INTO orders (customer_id, staff_id, order_date, total_amount) VALUES (?, ?, ?, ?)");
                         insertOrder.setInt(1, customerId);
-                        insertOrder.setDate(2, date);
-                        insertOrder.setDouble(3, Double.parseDouble(totalAmountField.getText()));
+                        insertOrder.setInt(2, staffId);
+                        insertOrder.setDate(3, date);
+                        insertOrder.setDouble(4, Double.parseDouble(totalAmountField.getText()));
+
 
                         // Update Customer Orders Count
                         PreparedStatement updateOrderCount = conn.prepareStatement("Update customers SET orders_count += 1 WHERE id = ?");
                         updateOrderCount.setInt(1, customerId);
 
+                        // Update Staff Orders Count
+                        PreparedStatement updateOrderSales = conn.prepareStatement("Update staff SET orders_sold += 1 WHERE id = ?");
+                        updateOrderSales.setInt(1, staffId);
+
+
                         insertOrder.executeUpdate();
+                        System.out.println("Order Insertion Executed");
                         updateOrderCount.executeUpdate();
+                        System.out.println("Update Customer Executed");
+                        updateOrderSales.executeUpdate();
+                        System.out.println("Update Staff Executed");
 
                         PreparedStatement getOrderId = conn.prepareStatement("SELECT TOP 1 id FROM orders ORDER BY id DESC");
                         ResultSet lastOrder = getOrderId.executeQuery();
                         lastOrder.next();
+                        System.out.println("Last Order Id Fetched");
                         int id = lastOrder.getInt(1);
 
                         newOrder.setOrderId(id);
                         newOrder.setCustomerName(customerName);
+                        newOrder.setStaffName(staffName);
                         newOrder.setOrderDate(date);
                         newOrder.setTotalAmount(Double.parseDouble(totalAmountField.getText()));
 
@@ -800,9 +844,10 @@ private void showOrdersPage() {
                             insertOrderItems.setInt(2, product.getProductId());
                             insertOrderItems.setInt(3, units);
                             insertOrderItems.setDouble(4, product.getPrice() * units);
-                            insertOrderItems.executeUpdate();
+                            insertOrderItems.executeUpdate(); //⚠️⚠️⚠️⚠️⚠️⚠️ DONT FORGET IT
 
                         }
+                        System.out.println("All Order Items Handled");
                         orders.add(newOrder);
                         orderTable.refresh();
                         showAlert(Alert.AlertType.INFORMATION, "Success", "New Order Added successfully!");
@@ -813,7 +858,7 @@ private void showOrdersPage() {
                         customerNameField.clear();
                     }
                 } catch (SQLException ex) {
-                    showAlert(Alert.AlertType.ERROR, "Fetching Issue", "Can't fetch customer from database");
+                    showAlert(Alert.AlertType.ERROR, "Fetching Issue", "Can't fetch customer or staff from database");
                 }
             }catch (NullPointerException nullExp) {
                 showAlert(Alert.AlertType.ERROR, "Invalid Input", "Customer Name and Order Date Are Not Valid");
@@ -824,6 +869,9 @@ private void showOrdersPage() {
 
         Label customerNameLabel = new Label("Customer Name:");
         customerNameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+        Label staffNameLabel = new Label("Staff Name:");
+        staffNameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
         Label orderDateLabel = new Label("Order Date:");
         orderDateLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
@@ -853,6 +901,7 @@ private void showOrdersPage() {
         // Layout for the dialog
         VBox layout = new VBox(15,
                 customerNameLabel, customerNameField,
+                staffNameLabel, staffNameField,
                 orderDateLabel, orderDatePicker,
                 productLabel, productRoot,
                 unitsLabel, unitsField,
@@ -865,7 +914,7 @@ private void showOrdersPage() {
         layout.setStyle("-fx-background-color: #f4f4f4; -fx-border-color: #dcdcdc; -fx-border-radius: 5; -fx-border-width: 1;");
 
         // Scene and stage
-        Scene scene = new Scene(layout, 400, 500);
+        Scene scene = new Scene(layout, 400, 600);
         dialog.setScene(scene);
         dialog.showAndWait();
     }
@@ -914,9 +963,11 @@ private void showOrdersPage() {
         productTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         productTable.setItems(productList);
         productTable.refresh();
+
         // Labels to display Order Info
         Label orderInfo = new Label("Details for Order ID: " + selectedOrder.getOrderId());
         Label customerName = new Label("Customer Name: " + selectedOrder.getCustomerName());
+        Label staffName = new Label("Staff Name: " + selectedOrder.getStaffName());
         Label orderDate = new Label("Order Date: " + selectedOrder.getOrderDate());
         Label totalPrice = new Label("Total Price: $" + selectedOrder.getTotalAmount());
 
@@ -926,7 +977,7 @@ private void showOrdersPage() {
         okButton.setOnAction(event -> dialogStage.close());
 
         // Layout for the Dialog
-        VBox dialogLayout = new VBox(10, orderInfo, customerName, orderDate, totalPrice, productTable, okButton);
+        VBox dialogLayout = new VBox(10, orderInfo, customerName, staffName, orderDate, totalPrice, productTable, okButton);
         dialogLayout.setAlignment(Pos.CENTER);
         dialogLayout.setPadding(new Insets(10));
 
@@ -936,9 +987,8 @@ private void showOrdersPage() {
     }
 
 
-//
-/*                                                  customer                                          */
-//
+/*----------------------------------------* Customer *----------------------------------------*/
+
 // Fetch customers from the database
     private void showCustomersPage() {
         TableView<Customer> customerTable = createCustomerTable();
@@ -1018,6 +1068,20 @@ private void showOrdersPage() {
 
         // Set Customers Page in Main Layout
         mainLayout.setCenter(customersPage);
+    }
+    private TableView<Customer> createCustomerTable() {
+        TableView<Customer> table = new TableView<>();
+
+        table.getColumns().addAll(
+                createColumn("Name", "name"),
+                createColumn("Email", "email"),
+                createColumn("Username", "username"),
+                createColumn("Orders", "ordersCount"),
+                createColumn("Status", "status")
+        );
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        return table;
     }
 
     // Add Edit and Delete Buttons to Table
@@ -1203,7 +1267,6 @@ private void showOrdersPage() {
         dialog.show();
     }
 
-
     // Delete Customer from Database
     private void deleteCustomerFromDatabase(Customer customer) {
         try (Connection conn = getConnection()) {
@@ -1346,103 +1409,396 @@ private void showOrdersPage() {
         dialog.setScene(scene);
         dialog.show();
     }
+    
+/*----------------------------------------* Staff *----------------------------------------*/
+    private void showStaffPage() {
+        TableView<Staff> staffTable = createStaffTable();
+        ObservableList<Staff> staffList = FXCollections.observableArrayList();
 
-/*               Helper Methods               */
+        // Fetch data from the database
+        try (Connection conn = getConnection(); Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery("SELECT id, name, phone, gender, orders_sold FROM staff")) {
+
+            while (rs.next()) {
+                staffList.add(new Staff(
+                        rs.getInt("id"), // ID
+                        rs.getString("name"), // Name
+                        rs.getString("phone"), // phone
+                        rs.getString("gender"), // gender
+                        rs.getInt("orders_sold") // Orders Count
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        staffTable.setItems(staffList);
+
+        // Search Field
+        TextField searchField = new TextField();
+        searchField.setPromptText("Search Staff");
+        searchField.setStyle("-fx-font-size: 14px; -fx-padding: 5px; -fx-border-radius: 5px; -fx-pref-width: 300px;");
+
+        // Search Button
+        Button searchButton = new Button("Search");
+        searchButton.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-size: 14px; -fx-pref-width: 80px;");
+        searchButton.setOnAction(e -> {
+            String query = searchField.getText().toLowerCase().trim();
+            if (query.isEmpty()) {
+                staffTable.setItems(staffList);
+                staffTable.refresh();
+            } else {
+                ObservableList<Staff> filteredStaff = FXCollections.observableArrayList();
+                for (Staff staff : staffList) {
+                    if (staff.getName().toLowerCase().contains(query)) {
+                        filteredStaff.add(staff);
+                    }
+                }
+                staffTable.setItems(filteredStaff);
+                staffTable.refresh();
+            }
+        });
+
+        // Add Staff Button
+        Button addStaffButton = new Button("Add Staff");
+        addStaffButton.setStyle("-fx-background-color: #0078D7; -fx-text-fill: white; -fx-font-size: 14px; -fx-pref-width: 120px;");
+        addStaffButton.setOnAction(e -> showAddStaffDialog(staffList));
+
+        // Add Top Bar (Search + Add Staff)
+        HBox topBar = new HBox(10, searchField, searchButton, addStaffButton);
+        topBar.setAlignment(Pos.CENTER_LEFT);
+        topBar.setPadding(new Insets(10, 10, 10, 10));
+        //HBox.setHgrow(searchField, Priority.ALWAYS);
+
+        // Add Buttons Column
+        addStaffButtonsColumn(staffTable, staffList);
+
+        // Spacer below the table
+        Region spacer = new Region();
+        spacer.setMinHeight(10);
+
+        // Main Layout: Combine Top Bar, Table, and Spacer
+        VBox StaffPage = new VBox(10, topBar, staffTable, spacer);
+        StaffPage.setPadding(new Insets(10));
+        VBox.setVgrow(staffTable, Priority.ALWAYS);
+        VBox.setVgrow(spacer, Priority.NEVER);
+
+        // Set Customers Page in Main Layout
+        mainLayout.setCenter(StaffPage);
+    }
+
+    private TableView<Staff> createStaffTable() {
+        TableView<Staff> table = new TableView<>();
+
+        table.getColumns().addAll(
+                createColumn("Name", "name"),
+                createColumn("Phone", "phone"),
+                createColumn("Gender", "gender"),
+                createColumn("Orders_Sold", "orders_sold")
+        );
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        return table;
+    }
+
+    // show add staff dialog
+    private void showAddStaffDialog(ObservableList<Staff> StaffList) {
+        Stage dialog = new Stage();
+        dialog.setTitle("Add New Staff");
+
+        // Labels and Fields
+        Label nameLabel = new Label("Name:");
+        TextField nameField = createStyledTextField("Enter Staff name");
+
+        Label phoneLabel = new Label("Phone:");
+        TextField phoneField = createStyledTextField("Enter Staff Phone");
+
+        Label genderLabel = new Label("Gender");
+        TextField genderField = createStyledTextField("Enter Staff Gender");
+
+        // Save Button (Made larger)
+        Button saveButton = createStyledButton("Save");
+        saveButton.setStyle(
+                "-fx-background-color: #0078D7; "
+                        + "-fx-text-fill: white; "
+                        + "-fx-font-size: 18px; "
+                        + // Increased font size
+                        "-fx-padding: 15px 30px; "
+                        + // Increased padding for a larger button
+                        "-fx-border-radius: 10px; "
+                        + "-fx-background-radius: 10px;"
+        );
+        saveButton.setOnMouseEntered(e -> saveButton.setStyle(
+                "-fx-background-color: #005A9E; "
+                        + "-fx-text-fill: white; "
+                        + "-fx-font-size: 18px; "
+                        + "-fx-padding: 15px 30px; "
+                        + "-fx-border-radius: 10px; "
+                        + "-fx-background-radius: 10px;"
+        ));
+        saveButton.setOnMouseExited(e -> saveButton.setStyle(
+                "-fx-background-color: #0078D7; "
+                        + "-fx-text-fill: white; "
+                        + "-fx-font-size: 18px; "
+                        + "-fx-padding: 15px 30px; "
+                        + "-fx-border-radius: 10px; "
+                        + "-fx-background-radius: 10px;"
+        ));
+        saveButton.setOnAction(e -> {
+            String name = nameField.getText().trim();
+            String phone = phoneField.getText().trim();
+            String gender = genderField.getText().trim();
+            // Validate inputs
+            if (name.isEmpty() || phone.isEmpty() || gender.isEmpty()) {
+                showAlert(Alert.AlertType.ERROR, "Validation Error", "All fields must be filled!");
+                return;
+            }
+//            try {
+//                Long test = Long.parseLong(phone); // to check phone is number
+//                test = null;
+//            } catch (NumberFormatException ex) {
+//                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter valid numeric valus for Phone");
+//                return;
+//            }
+
+            try {
+                // Save to the database
+                try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(
+                        "INSERT INTO staff (name, phone, gender, orders_sold) VALUES (?, ?, ?,0)")) {
+                    pstmt.setString(1, name);
+                    pstmt.setString(2, phone);
+                    pstmt.setString(3, gender);
+                    System.out.println("1");
+                    pstmt.executeUpdate();
+
+                    PreparedStatement getStaffId = conn.prepareStatement("SELECT id FROM staff WHERE CAST(name AS NVARCHAR(MAX)) = ? AND CAST(phone AS NVARCHAR(MAX)) = ?");
+                    getStaffId.setString(1, name);
+                    getStaffId.setString(2, phone);
+                    System.out.println("2");
+                    ResultSet res = getStaffId.executeQuery();
+                    res.next();
+                    int id = res.getInt(1);
+
+                    // Update table and close dialog
+                    StaffList.add(new Staff(id, name, phone, gender, 0));
+                    showAlert(Alert.AlertType.INFORMATION, "Success", "Staff added successfully!");
+                    dialog.close();
+                }
+
+            }catch (SQLException ex) {
+                System.out.println("error");
+                ex.printStackTrace();
+                showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to save customer!");
+            }
+
+        });
+
+
+
+        // Form layout
+        GridPane form = new GridPane();
+        form.setHgap(10);
+        form.setVgap(15);
+        form.setPadding(new Insets(20));
+
+        // Add labels and fields to the layout
+        form.add(nameLabel, 0, 0);
+        form.add(nameField, 1, 0);
+
+        form.add(phoneLabel, 0, 1);
+        form.add(phoneField, 1, 1);
+
+        form.add(genderLabel, 0, 2);
+        form.add(genderField, 1, 2);
+
+        // Add Save Button to the center
+        HBox buttonBox = new HBox(saveButton);
+        buttonBox.setAlignment(Pos.CENTER);
+        form.add(buttonBox, 0, 5, 2, 1);
+
+        Scene scene = new Scene(form, 450, 400);
+        dialog.setScene(scene);
+        dialog.show();
+    }
+
+    // Add Edit and Delete Buttons to Table
+    private void addStaffButtonsColumn(TableView<Staff> staffTable, ObservableList<Staff> staffList) {
+        // Edit Button Column
+        TableColumn<Staff, Void> editColumn = new TableColumn<>("Edit");
+        editColumn.setCellFactory(param -> new TableCell<Staff, Void>() {
+            private final Button editButton = new Button("Edit");
+
+            {
+                editButton.setStyle("-fx-background-color: #0078D7; -fx-text-fill: white;");
+                editButton.setOnAction(event -> {
+                    Staff selectedStaff = getTableView().getItems().get(getIndex());
+                    showEditStaffDialog(selectedStaff, staffList);
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    setGraphic(editButton);
+                }
+            }
+        });
+
+        // Delete Button Column
+        TableColumn<Staff, Void> deleteColumn = new TableColumn<>("Delete");
+        deleteColumn.setCellFactory(param -> new TableCell<Staff, Void>() {
+            private final Button deleteButton = new Button("Delete");
+
+            {
+                deleteButton.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white;");
+                deleteButton.setOnAction(event -> {
+                    Staff selectedStaff = getTableView().getItems().get(getIndex());
+                    boolean confirmed = showConfirmationDialog("Delete Staff", "Are you sure you want to delete this Staff?");
+                    if (confirmed) {
+                        deleteStaffFromDatabase(selectedStaff);
+                        staffList.remove(selectedStaff);
+                    }
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    setGraphic(deleteButton);
+                }
+            }
+        });
+
+        // Add columns to the table
+        staffTable.getColumns().addAll(editColumn, deleteColumn);
+    }
+
+    private void showEditStaffDialog(Staff staff, ObservableList<Staff> staffList) {
+        // Create a new dialog stage
+        Stage dialog = new Stage();
+        dialog.setTitle("Edit Staff");
+        dialog.setResizable(false);
+
+        // Text fields for editing staff details
+        TextField nameField = new TextField(staff.getName());
+        nameField.setPromptText("Enter Name");
+        nameField.setStyle("-fx-font-size: 14px;");
+
+        TextField phoneField = new TextField(staff.getPhone());
+        phoneField.setPromptText("Enter Phone");
+        phoneField.setStyle("-fx-font-size: 14px;");
+
+        TextField genderField = new TextField(staff.getGender());
+        genderField.setPromptText("Enter Gender");
+        genderField.setStyle("-fx-font-size: 14px;");
+
+        // Save button
+        Button saveButton = new Button("Save");
+        saveButton.setStyle("-fx-background-color: #0078D7; -fx-text-fill: white; -fx-font-size: 14px; -fx-pref-width: 100px;");
+        saveButton.setOnAction(e -> {
+            // Get field values
+            String name = nameField.getText().trim();
+            String phone = phoneField.getText().trim();
+            String gender = genderField.getText().trim();
+
+            // Validate fields are not empty
+            if (name.isEmpty() || phone.isEmpty() || gender.isEmpty()) {
+                showAlert(Alert.AlertType.ERROR, "Validation Error", "All fields must be filled.");
+                return;
+            }
+//            try {
+//                Long test = Long.parseLong(phone); // to check phone is number
+//                test = null;
+//            } catch (NumberFormatException ex) {
+//                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter valid numeric valus for Phone");
+//                return;
+//            }
+
+            // Update the staff in the database
+            try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(
+                    "UPDATE staff SET name = ?, phone = ?, gender = ? WHERE id = ?")) {
+
+                pstmt.setString(1, name);
+                pstmt.setString(2, phone);
+                pstmt.setString(3, gender);
+                pstmt.setInt(4, staff.getId());
+
+                int rowsAffected = pstmt.executeUpdate();
+
+                if (rowsAffected == 0) {
+                    showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to update customer in the database.");
+                    return;
+                }
+
+                // Update the staff object and the ObservableList
+                staff.setName(name);
+                staff.setPhone(phone);
+                staff.setGender(gender);
+                staffList.set(staffList.indexOf(staff), staff);
+
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Staff updated successfully!");
+                dialog.close();
+
+            } catch (SQLException ex) {
+                showAlert(Alert.AlertType.ERROR, "Database Error", "An error occurred while updating the database: " + ex.getMessage());
+                ex.printStackTrace();
+            }
+        });
+
+        // Labels with bold styling
+        Label nameLabel = new Label("Name:");
+        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+        Label phoneLabel = new Label("Phone:");
+        phoneLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+        Label genderLabel = new Label("Gender:");
+        genderLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+        // Layout for the dialog
+        VBox layout = new VBox(15,
+                nameLabel, nameField,
+                phoneLabel, phoneField,
+                genderLabel, genderField,
+                saveButton
+        );
+        layout.setAlignment(Pos.CENTER);
+        layout.setPadding(new Insets(20));
+        layout.setStyle("-fx-background-color: #f4f4f4; -fx-border-color: #dcdcdc; -fx-border-radius: 5; -fx-border-width: 1;");
+
+        // Create and show the dialog scene
+        Scene scene = new Scene(layout, 350, 450);
+        dialog.setScene(scene);
+        dialog.show();
+    }
+
+    // Delete staff from Database
+    private void deleteStaffFromDatabase(Staff staff) {
+        try (Connection conn = getConnection()) {
+            // Delete the staff
+            PreparedStatement deleteStaffStmt = conn.prepareStatement(
+                    "DELETE FROM staff WHERE id = ?");
+            deleteStaffStmt.setInt(1, staff.getId());
+            deleteStaffStmt.executeUpdate();
+
+            showAlert(Alert.AlertType.INFORMATION, "Success", "staff and their orders deleted successfully!");
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to delete customer: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+/*----------------------------------------Helper Methods----------------------------------------*/
     private void showAlert(Alert.AlertType type, String title, String message) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
         alert.setContentText(message);
         alert.showAndWait();
-    }
-
-    private <T> HBox createSearchBar(String placeholder, TableView<T> table, ObservableList<T> originalData, String... filterableProperties) {
-        TextField searchField = createStyledTextField(placeholder);
-        Button searchButton = createStyledButton("Search");
-
-        searchButton.setOnAction(event -> {
-            String searchTerm = searchField.getText().trim().toLowerCase();
-
-            if (searchTerm.isEmpty()) {
-                table.setItems(originalData);
-            } else {
-                ObservableList<T> filteredList = FXCollections.observableArrayList();
-
-                for (T item : originalData) {
-                    for (String property : filterableProperties) {
-                        try {
-                            // Use reflection to dynamically get property values
-                            String value = item.getClass().getMethod("get" + capitalize(property)).invoke(item).toString().toLowerCase();
-                            if (value.contains(searchTerm)) {
-                                filteredList.add(item);
-                                break; // Match found, move to the next item
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-
-                table.setItems(filteredList);
-            }
-        });
-
-        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue.isEmpty()) {
-                table.setItems(originalData);
-            }
-        });
-
-        HBox searchBox = new HBox(10, searchField, searchButton);
-        searchBox.setAlignment(Pos.CENTER);
-
-        return searchBox;
-    }
-
-    private String capitalize(String str) {
-        return str.substring(0, 1).toUpperCase() + str.substring(1);
-    }
-
-    private TableView<Product> createProductTable() {
-        TableView<Product> table = new TableView<>();
-
-        table.getColumns().addAll(
-                createColumn("Name", "name"),
-                createColumn("Price", "price"),
-                createColumn("Quantity", "quantity"),
-                createColumn("Category", "category")
-        );
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        return table;
-    }
-
-    private TableView<Order> createOrderTable() {
-        TableView<Order> table = new TableView<>();
-
-        table.getColumns().addAll(
-                createColumn("Order ID", "orderId"),
-                createColumn("Customer Name", "customerName"),
-                createColumn("Order Date", "orderDate"),
-                createColumn("Total Amount", "totalAmount")
-        );
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        return table;
-    }
-
-    private TableView<Customer> createCustomerTable() {
-        TableView<Customer> table = new TableView<>();
-
-        table.getColumns().addAll(
-                createColumn("Name", "name"),
-                createColumn("Email", "email"),
-                createColumn("Username", "username"),
-                createColumn("Orders", "ordersCount"),
-                createColumn("Status", "status")
-        );
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        return table;
     }
 
     private <T> TableColumn<T, ?> createColumn(String title, String property) {
@@ -1468,4 +1824,45 @@ private void showOrdersPage() {
     private Button createStyledButton(String text) {
         Button button = new Button(text);
         button.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-        butto
+        button.setTextFill(Color.WHITE);
+        button.setStyle("-fx-background-color: #2980b9; -fx-background-radius: 15;");
+        return button;
+    }
+
+    private Button createStyledSignOutButton(String text) {
+        Button button = new Button(text);
+        button.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+        button.setTextFill(Color.WHITE);
+        button.setStyle("-fx-background-color: #c0392b; -fx-background-radius: 15;");
+        return button;
+    }
+
+    private void styleLabel(Label label, int fontSize, String color, boolean bold) {
+        label.setFont(Font.font("Arial", bold ? FontWeight.BOLD : FontWeight.NORMAL, fontSize));
+        label.setTextFill(Color.web(color));
+    }
+    private ObservableList<Product> getProductList() { // connect and fetch Data
+        ObservableList<Product> productsList = FXCollections.observableArrayList();;
+        try (Connection conn = getConnection(); Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery("SELECT id, name, price, quantity, category FROM products")) {
+
+            while (rs.next()) {
+                productsList.add(new Product(
+                        rs.getInt("id"), // ID
+                        rs.getString("name"),
+                        rs.getDouble("price"),
+                        rs.getInt("quantity"),
+                        rs.getString("category")
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return productsList;
+    }
+    private boolean isCustomerExist(Connection conn, String name) throws SQLException {
+        PreparedStatement checkCustomer = conn.prepareStatement("SELECT 1 exp FROM customers WHERE CAST(name AS NVARCHAR(MAX)) = ?", Statement.RETURN_GENERATED_KEYS);
+        checkCustomer.setString(1, name);
+        ResultSet res = checkCustomer.executeQuery();
+        return res.next();
+    }
+}
