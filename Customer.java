@@ -6,16 +6,16 @@ public class Customer {
     private String email;
     private String username;
     private int ordersCount;
-    private String status;
+    private char gender;
 
     // Constructor
-    public Customer(int id, String name, String email, String username, int ordersCount, String status) {
+    public Customer(int id, String name, String email, String username, int ordersCount, char gender) {
         this.id = id;
         this.name = name;
         this.email = email;
         this.username = username;
         this.ordersCount = ordersCount;
-        this.status = status;
+        this.gender = gender;
     }
 
     // Getters and Setters
@@ -59,11 +59,11 @@ public class Customer {
         this.ordersCount = ordersCount;
     }
 
-    public String getStatus() {
-        return status;
+    public char getGender() {
+        return gender;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
+    public void setGender(char status) {
+        this.gender = gender;
     }
 }
