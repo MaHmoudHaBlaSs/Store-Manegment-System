@@ -7,6 +7,16 @@ public class Order {
     private int orderId;
     private int customerId;
     private String customerName;
+
+    public String getStaffName() {
+        return staffName;
+    }
+
+    public void setStaffName(String staffName) {
+        this.staffName = staffName;
+    }
+
+    private String staffName;
     private Date orderDate;
     private double totalAmount;
 
@@ -16,6 +26,13 @@ public class Order {
     public Order(int orderId, String customerName, Date orderDate, double totalAmount) {
         this.orderId = orderId;
         this.customerName = customerName;
+        this.orderDate = orderDate;
+        this.totalAmount = totalAmount;
+    }
+    public Order(int orderId, String customerName, String staffName ,Date orderDate, double totalAmount) {
+        this.orderId = orderId;
+        this.customerName = customerName;
+        this.staffName = staffName;
         this.orderDate = orderDate;
         this.totalAmount = totalAmount;
     }
